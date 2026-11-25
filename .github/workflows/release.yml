@@ -1,0 +1,85 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to create (defaults to v<Version> from the csproj)"
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: publish binaries & release
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Resolve version and tag
+        id: version
+        shell: bash
+        run: |
+          version=$(dotnet msbuild src/Msgtrap/Msgtrap.csproj -getProperty:Version)
+          tag="${{ inputs.tag }}"
+          if [ -z "$tag" ] && [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            tag="$GITHUB_REF_NAME"
+          fi
+          if [ -z "$tag" ]; then
+            tag="v$version"
+          fi
+          if [ "$tag" != "v$version" ]; then
+            echo "::error::Tag '$tag' does not match <Version>$version</Version> in Msgtrap.csproj - expected 'v$version'."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      # Every RID is published from Linux so the unix binaries keep their executable
+      # bit, which the tar archives below preserve.
+      - name: Publish self-contained binaries
+        shell: bash
+        run: |
+          for rid in win-x64 linux-x64 linux-arm64 osx-x64 osx-arm64; do
+            echo "::group::publish $rid"
+            dotnet publish src/Msgtrap/Msgtrap.csproj -c Release -r "$rid"
+            echo "::endgroup::"
+          done
+
+      - name: Pack tool
+        run: dotnet pack src/Msgtrap/Msgtrap.csproj -c Release
+
+      - name: Package release assets
+        shell: bash
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          mkdir -p dist
+          (cd artifacts/win-x64 && zip -j "../../dist/msgtrap-$version-win-x64.zip" msgtrap.exe)
+          for rid in linux-x64 linux-arm64 osx-x64 osx-arm64; do
+            tar --mode='a+x' -C "artifacts/$rid" -czf "dist/msgtrap-$version-$rid.tar.gz" msgtrap
+          done
+          cp artifacts/*.nupkg dist/
+          ls -l dist
+
+      - name: Create or update GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ steps.version.outputs.tag }}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" dist/* --clobber
+          else
+            gh release create "$tag" dist/* \
+              --title "Msgtrap ${tag#v}" \
+              --generate-notes \
+              --latest
+          fi

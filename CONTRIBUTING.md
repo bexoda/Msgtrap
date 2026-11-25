@@ -143,6 +143,22 @@ No build step: edit `src/Msgtrap/wwwroot/{index.html,app.js,styles.css}` and rel
 accessible (labels, focus styles, `Enter`/`Space` on rows) and respect
 `prefers-reduced-motion`. Assets are embedded, so no project file changes are needed.
 
+## Releasing
+
+The version lives in `<Version>` in `src/Msgtrap/Msgtrap.csproj`. Bump it, commit, then push
+a tag with the same number:
+
+```bash
+git tag v0.4.0
+git push origin v0.4.0
+```
+
+The `release` workflow publishes the five self-contained binaries plus the tool package and
+attaches them to a GitHub release, so they can be downloaded from
+<https://github.com/bexoda/Msgtrap/releases>. The tag must match the csproj version or the
+workflow fails before publishing anything. To cut a release without pushing a tag, run the
+`release` workflow from the Actions tab.
+
 ## Pull requests
 
 1. One focused change per PR.

@@ -47,6 +47,30 @@ is delivered — Msgtrap is a trap, not a relay.
 
 ## Install
 
+### Download a binary
+
+Every [release](https://github.com/bexoda/Msgtrap/releases) publishes one self-contained
+executable per platform — no .NET SDK or runtime needed:
+
+| Platform | Asset |
+| --- | --- |
+| Windows x64 | `msgtrap-<version>-win-x64.zip` |
+| Linux x64 | `msgtrap-<version>-linux-x64.tar.gz` |
+| Linux arm64 | `msgtrap-<version>-linux-arm64.tar.gz` |
+| macOS Intel | `msgtrap-<version>-osx-x64.tar.gz` |
+| macOS Apple silicon | `msgtrap-<version>-osx-arm64.tar.gz` |
+
+```bash
+tar -xzf msgtrap-0.4.0-linux-x64.tar.gz
+./msgtrap
+```
+
+The macOS binaries are unsigned, so if you downloaded one through a browser run
+`xattr -d com.apple.quarantine msgtrap` first. The same `.nupkg` the tool is built from is
+attached to each release if you prefer to install it from a local folder.
+
+### Install as a .NET tool
+
 Requires the .NET 10 SDK.
 
 ```bash

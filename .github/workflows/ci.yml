@@ -32,3 +32,11 @@ jobs:
 
       - name: Pack tool
         run: dotnet pack src/Msgtrap/Msgtrap.csproj -c Release --no-build
+
+      - name: Upload tool package
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: msgtrap-nupkg
+          path: artifacts/*.nupkg
+          if-no-files-found: error
