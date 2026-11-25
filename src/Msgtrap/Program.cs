@@ -107,17 +107,62 @@ catch (ArgumentException ex)
 
 var httpLog = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Msgtrap.Http");
 
-// Browsers calling the API directly from a dev web app need CORS.
+// Browser-facing guard. The inbox holds OTPs and reset links, so a web page the developer
+// happens to visit must not be able to read or change it:
+//  - Host check: stops DNS rebinding (evil.com re-resolving to 127.0.0.1). Only enforced when
+//    bound to loopback; binding elsewhere is an explicit opt-in to being reachable.
+//  - Origin check: control plane and UI are same-origin only (no CORS headers at all).
+//  - Wildcard CORS stays on the provider APIs only, because a dev web app may call them directly.
+var loopbackBound = IsLoopback(options.Host);
 app.Use(async (context, next) =>
 {
+    var request = context.Request;
     var headers = context.Response.Headers;
-    headers["Access-Control-Allow-Origin"] = "*";
-    headers["Access-Control-Allow-Headers"] = "Content-Type, api-key, x-api-key, Authorization";
-    headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS";
 
-    if (HttpMethods.IsOptions(context.Request.Method))
+    headers["X-Content-Type-Options"] = "nosniff";
+    headers["X-Frame-Options"] = "DENY";
+    headers["Referrer-Policy"] = "no-referrer";
+    // Email previews are untrusted HTML: no remote images/fonts/scripts means no tracking pixels.
+    headers["Content-Security-Policy"] =
+        "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; " +
+        "font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
+
+    if (loopbackBound && !IsLoopback(request.Host.Host))
     {
-        context.Response.StatusCode = StatusCodes.Status204NoContent;
+        context.Response.StatusCode = StatusCodes.Status421MisdirectedRequest;
+        return;
+    }
+
+    var path = request.Path.Value ?? "/";
+    // Routing is case-insensitive, so this must be too (/API/Control/... still hits the control plane).
+    var isControl = path.Equals("/api/control", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/api/control/", StringComparison.OrdinalIgnoreCase);
+    var isProviderApi = !isControl
+                        && (path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase)
+                            || path.StartsWith("/v1/", StringComparison.OrdinalIgnoreCase)
+                            || path.StartsWith("/2010-04-01/", StringComparison.OrdinalIgnoreCase));
+
+    if (isProviderApi)
+    {
+        headers["Access-Control-Allow-Origin"] = "*";
+        headers["Access-Control-Allow-Headers"] = "Content-Type, api-key, x-api-key, Authorization";
+        headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS";
+        if (HttpMethods.IsOptions(request.Method))
+        {
+            context.Response.StatusCode = StatusCodes.Status204NoContent;
+            return;
+        }
+    }
+    else if (request.Headers.Origin.Count > 0
+             && !(Uri.TryCreate(request.Headers.Origin[0], UriKind.Absolute, out var origin)
+                  && string.Equals(origin.Authority, request.Host.ToString(), StringComparison.OrdinalIgnoreCase)))
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        return;
+    }
+    else if (HttpMethods.IsOptions(request.Method))
+    {
+        context.Response.StatusCode = StatusCodes.Status405MethodNotAllowed;
         return;
     }
 
@@ -196,6 +241,10 @@ banner.AppendLine();
 banner.AppendLine(registry.StartupRestricted
     ? "  Only the providers listed above are loaded (--provider)."
     : "  All providers loaded - switch them on or off in the web UI.");
+if (!IsLoopback(options.Host) || (options.EnableSmtp && !IsLoopback(options.SmtpHost)))
+    banner.AppendLine("  WARNING: bound beyond loopback. The inbox, settings and SMTP have no authentication;"
+        + Environment.NewLine + "           anyone who can reach this port can read your captured OTPs and email."
+        + Environment.NewLine);
 banner.AppendLine("  Messages and email live in memory only - nothing is sent, nothing is billed.");
 banner.AppendLine("  Press Ctrl+C (or Ctrl+X) to stop.");
 banner.AppendLine();
@@ -208,6 +257,10 @@ if (!Console.IsInputRedirected)
     _ = WatchQuitKeyAsync(app.Lifetime);
 
 await app.WaitForShutdownAsync();
+
+static bool IsLoopback(string host) =>
+    host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+    || (System.Net.IPAddress.TryParse(host.Trim('[', ']'), out var ip) && System.Net.IPAddress.IsLoopback(ip));
 
 // Ctrl+C is handled by the host; Ctrl+X needs a key loop.
 static async Task WatchQuitKeyAsync(IHostApplicationLifetime lifetime)

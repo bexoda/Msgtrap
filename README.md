@@ -447,8 +447,14 @@ socket-level SMTP conversation.
 ## Limitations
 
 - In-memory only: restarting empties the inbox and forgets outstanding OTPs.
-- HTTP and SMTP are bound to loopback by default. Do not expose them to a network you do
-  not trust.
+- HTTP and SMTP are bound to loopback by default and have no authentication. Do not expose
+  them to a network you do not trust (Msgtrap prints a warning if you do).
+- Browser safety: the inbox/settings API is same-origin only, requests with a non-loopback
+  `Host` are refused (DNS rebinding), and the UI sends a strict CSP, so a website you visit
+  cannot read your captured OTPs. Only the provider APIs allow cross-origin calls. HTML email
+  previews are sandboxed and cannot load remote images.
+- Delivery callbacks are real HTTP requests to whatever `callback` URL the sending app
+  supplies (http/https only), so only point apps you trust at Msgtrap.
 - Each adapter implements a documented **subset**; see the per-provider page for what is
   and is not emulated. Unsupported endpoints return `404`.
 - Numbers are validated permissively (7–15 digits) because test numbers are usually fake.
