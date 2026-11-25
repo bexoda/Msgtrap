@@ -1,0 +1,101 @@
+# --- .NET build output ---
+[Bb]in/
+[Oo]bj/
+artifacts/
+nupkg/
+publish/
+dist/
+out/
+release/
+*.nupkg
+*.snupkg
+*.binlog
+*.log
+*.tlog
+project.assets.json
+project.lock.json
+*.nuget.g.props
+*.nuget.g.targets
+*.nuget.dgspec.json
+
+# --- Local SDK / CLI installs ---
+.dotnet/
+.dotnet-tools/
+.dotnet-home/
+packages/
+
+# --- Build tooling caches ---
+.msbuild/
+msbuild.log
+*.metaproj
+*.metaproj.tmp
+
+# --- Rider / Visual Studio / VS Code ---
+.idea/
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.rsuser
+
+# --- Test results & coverage ---
+[Tt]est[Rr]esult*/
+coverage*.xml
+coverage*.json
+*.coverage
+*.coveragexml
+coverage-report/
+TestResults/
+
+# --- Local config & secrets ---
+.env
+.env.*
+!.env.example
+*.local.json
+appsettings.Local.json
+secrets.json
+
+# --- AI coding tooling ---
+.claude/
+.copilot/
+.codex/
+.cursor/
+.codeium/
+.windsurf/
+.continue/
+.aider*
+.gemini/
+.kiro/
+.amazonq/
+.roo/
+.qodo/
+.clinerules/
+.agents/
+.specify/
+.openhands/
+.tabnine/
+.ai/
+.prompt/
+# AI tool instruction files at the repo root
+/AGENTS.md
+/CLAUDE.md
+/GEMINI.md
+/COPILOT.md
+/.github/instructions/
+/.github/prompts/
+/.github/agents/
+/.github/chatmodes/
+
+# --- OS noise ---
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+*.swp
+*.swo
+.memsearch/

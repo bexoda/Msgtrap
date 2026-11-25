@@ -1,0 +1,34 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test:
+    name: build & test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore Msgtrap.sln
+
+      - name: Build
+        run: dotnet build Msgtrap.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test Msgtrap.sln -c Release --no-build
+
+      - name: Pack tool
+        run: dotnet pack src/Msgtrap/Msgtrap.csproj -c Release --no-build

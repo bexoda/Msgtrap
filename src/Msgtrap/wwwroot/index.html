@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Msgtrap - local SMS and email trap</title>
+<meta name="description" content="A local trap for SMS provider APIs and SMTP email. Nothing ever leaves your machine.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/vendor/base.css">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body class="app">
+
+<div class="page">
+
+  <header class="app-header">
+    <div class="header-left">
+      <a class="header-brand" href="/">
+        <span class="brand-mark">
+          <svg viewBox="0 0 32 32" aria-hidden="true">
+            <rect x="3" y="7" width="26" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="2.2"/>
+            <path d="M9 14.5h9M9 19h5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+            <circle cx="23" cy="19" r="2" fill="currentColor"/>
+          </svg>
+        </span>
+        <span class="brand-name">Msgtrap</span>
+      </a>
+      <button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Toggle sidebar"
+              aria-controls="app-sidebar" aria-expanded="true">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+    </div>
+
+    <div class="header-right">
+      <span id="live" class="live" data-state="offline" title="Live updates">
+        <span class="live-dot"></span><span id="live-label">connecting</span>
+      </span>
+    </div>
+  </header>
+
+  <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
+
+  <aside id="app-sidebar" class="app-sidebar">
+    <nav class="side-menu" aria-label="Capture channels and settings">
+      <p class="side-heading">Capture</p>
+      <button class="side-item" type="button" role="tab" data-channel="sms" aria-selected="true">
+        <svg class="side-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span class="side-label">SMS</span>
+        <span id="sms-count" class="side-badge">0</span>
+      </button>
+      <button class="side-item" type="button" role="tab" data-channel="email" aria-selected="false">
+        <svg class="side-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+        <span class="side-label">Email</span>
+        <span id="email-count" class="side-badge">0</span>
+      </button>
+
+      <p class="side-heading">Configure</p>
+      <button class="side-item" type="button" data-open="providers-btn">
+        <svg class="side-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3"/><path d="M1 14h6M9 8h6M17 16h6"/></svg>
+        <span class="side-label">Providers</span>
+      </button>
+      <button class="side-item" type="button" data-open="settings-btn">
+        <svg class="side-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.1 14.6a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5v.2a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1.1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H2a2 2 0 1 1 0-4h.2a1.6 1.6 0 0 0 1.4-1.1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H8a1.6 1.6 0 0 0 1-1.5V2a2 2 0 1 1 4 0v.2a1.6 1.6 0 0 0 1 1.4 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V8a1.6 1.6 0 0 0 1.5 1h.2a2 2 0 1 1 0 4h-.2a1.6 1.6 0 0 0-1.4 1z"/></svg>
+        <span class="side-label">Settings</span>
+      </button>
+    </nav>
+
+    <div class="side-foot">
+      <p class="side-foot-title">In memory only</p>
+      <p class="side-foot-copy">Nothing is sent, nothing is billed.</p>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="page-header">
+      <div class="page-titles">
+        <h1 id="page-title">SMS</h1>
+        <p id="page-sub" class="page-sub">Arkesel, Hubtel, Twilio and mNotify routes feeding one inbox.</p>
+      </div>
+      <div class="page-actions">
+        <button id="compose-btn" class="action-btn action-indigo" type="button" title="Compose a test SMS" aria-label="Compose a test SMS">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+        </button>
+        <button id="providers-btn" class="action-btn action-green" type="button" title="Providers" aria-label="Providers">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3"/><path d="M1 14h6M9 8h6M17 16h6"/></svg>
+        </button>
+        <button id="settings-btn" class="action-btn action-amber" type="button" title="Simulation settings" aria-label="Simulation settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.1 14.6a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5v.2a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1.1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H2a2 2 0 1 1 0-4h.2a1.6 1.6 0 0 0 1.4-1.1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H8a1.6 1.6 0 0 0 1-1.5V2a2 2 0 1 1 4 0v.2a1.6 1.6 0 0 0 1 1.4 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V8a1.6 1.6 0 0 0 1.5 1h.2a2 2 0 1 1 0 4h-.2a1.6 1.6 0 0 0-1.4 1z"/></svg>
+        </button>
+        <button id="clear-btn" class="action-btn action-red" type="button" title="Clear this inbox" aria-label="Clear this inbox">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="card mail-shell">
+      <div class="mail-list-col">
+        <div class="mail-tools">
+          <div class="search-wrap">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>
+            <input id="search" class="form-control" type="search" placeholder="Search sender, body, number or id"
+                   autocomplete="off" spellcheck="false" aria-label="Search the inbox">
+            <kbd>/</kbd>
+          </div>
+          <div class="mail-filters">
+            <select id="status-filter" class="form-select form-select-sm" data-channel-only="sms" aria-label="Filter by status">
+              <option value="">All statuses</option>
+              <option value="delivered">Delivered</option>
+              <option value="queued">Queued</option>
+              <option value="scheduled">Scheduled</option>
+              <option value="failed">Failed</option>
+            </select>
+            <select id="provider-filter" class="form-select form-select-sm" data-channel-only="sms" aria-label="Filter by provider">
+              <option value="">All providers</option>
+            </select>
+            <span id="count" class="count">0 messages</span>
+          </div>
+        </div>
+
+        <div class="mail-scroll">
+          <ul id="list" class="list" aria-label="Captured SMS"></ul>
+          <ul id="email-list" class="list" aria-label="Captured email" hidden></ul>
+
+          <div id="empty" class="empty">
+            <svg viewBox="0 0 48 48" aria-hidden="true">
+              <rect x="5" y="12" width="38" height="24" rx="7" fill="none" stroke="currentColor" stroke-width="2"/>
+              <path d="M14 21h13M14 27h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <h2>No messages yet</h2>
+            <p>Point your app at this server's provider routes, or hit <strong>Compose</strong> to send one yourself.</p>
+          </div>
+
+          <div id="email-empty" class="empty" hidden>
+            <svg viewBox="0 0 48 48" aria-hidden="true">
+              <rect x="5" y="13" width="38" height="22" rx="4" fill="none" stroke="currentColor" stroke-width="2"/>
+              <path d="M6 15l18 13 18-13" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+            </svg>
+            <h2>No email yet</h2>
+            <p id="smtp-empty-line">Send mail to <code id="smtp-address-empty">127.0.0.1:1025</code> from your app. Any sender, any recipient, no credentials.</p>
+            <p class="hint" id="smtp-hint-empty"></p>
+          </div>
+        </div>
+      </div>
+
+      <section id="detail" class="detail" aria-live="polite">
+        <div class="detail-empty">
+          <p>Select a message to inspect the request, segments and delivery timeline.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<dialog id="compose" class="sheet">
+  <form id="compose-form" method="dialog">
+    <header class="sheet-head">
+      <h2>Send a test SMS</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Close">&times;</button>
+    </header>
+
+    <div class="grid-2">
+      <label class="field">
+        <span>Sender ID</span>
+        <input id="c-sender" class="form-control" value="Msgtrap" maxlength="11" required>
+        <small>11 characters max</small>
+      </label>
+      <label class="field">
+        <span>Recipients</span>
+        <input id="c-recipients" class="form-control" value="233544919953" required>
+        <small>Comma separated, e.g. 233544919953, 233201234567</small>
+      </label>
+    </div>
+
+    <label class="field">
+      <span>Message</span>
+      <textarea id="c-message" class="form-control" rows="5" required>Your verification code is 123456. It expires in 5 minutes.</textarea>
+      <small id="c-counter" class="counter">0 characters</small>
+    </label>
+
+    <div class="grid-2">
+      <label class="field">
+        <span>Scheduled date <em>optional</em></span>
+        <input id="c-scheduled" class="form-control" placeholder="2021-04-09 07:30 AM">
+      </label>
+      <label class="field">
+        <span>Callback URL <em>optional</em></span>
+        <input id="c-callback" class="form-control" placeholder="http://localhost:3000/sms/delivered">
+      </label>
+    </div>
+
+    <label class="check">
+      <input id="c-sandbox" class="form-check-input" type="checkbox">
+      <span>Sandbox flag (accepted and recorded, never billed)</span>
+    </label>
+
+    <pre id="compose-result" class="result" hidden></pre>
+
+    <footer class="sheet-foot">
+      <span class="hint">POSTs to <code>/api/v2/sms/send</code></span>
+      <div>
+        <button type="button" class="btn btn-light" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Send</button>
+      </div>
+    </footer>
+  </form>
+</dialog>
+
+<dialog id="providers" class="sheet sheet-wide">
+  <form method="dialog">
+    <header class="sheet-head">
+      <h2>Providers</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Close">&times;</button>
+    </header>
+
+    <p class="hint" id="providers-note">
+      Point your app's base URL at this server and use the credentials below.
+      Toggle a provider off to make its routes answer <code>404</code>.
+    </p>
+
+    <div id="provider-list" class="provider-list"></div>
+
+    <section class="provider-card" id="smtp-card">
+      <div class="provider-head">
+        <div>
+          <h3>Email over SMTP</h3>
+          <p class="provider-summary">Any SMTP client works: no TLS, no credentials, plain text only.</p>
+        </div>
+      </div>
+      <h4 class="provider-label">Address</h4>
+      <p class="provider-base">
+        <code id="smtp-address" data-copy="127.0.0.1:1025" title="Click to copy">127.0.0.1:1025</code>
+      </p>
+      <p class="hint" id="smtp-hint"></p>
+    </section>
+
+    <footer class="sheet-foot">
+      <span class="hint">Messages from every provider share one inbox.</span>
+      <div><button type="button" class="btn btn-light" data-close>Close</button></div>
+    </footer>
+  </form>
+</dialog>
+
+<dialog id="settings" class="sheet">
+  <form id="settings-form" method="dialog">
+    <header class="sheet-head">
+      <h2>Simulation settings</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Close">&times;</button>
+    </header>
+
+    <label class="check">
+      <input id="s-enforce" class="form-check-input" type="checkbox">
+      <span>Require credentials (reject wrong keys with each provider's auth error)</span>
+    </label>
+    <p class="hint indent">Expected values are listed in the <strong>Providers</strong> panel.</p>
+
+    <label class="field">
+      <span>Force send failure</span>
+      <select id="s-error" class="form-select">
+        <option value="">No - accept messages normally</option>
+        <option value="402">402 - Insufficient balance</option>
+        <option value="403">403 - Inactive SMS Gateway</option>
+        <option value="500">500 - SMS request failed</option>
+      </select>
+      <small>Lets you exercise your app's Arkesel error handling.</small>
+    </label>
+
+    <div class="grid-2">
+      <label class="field">
+        <span>Delivery delay (ms)</span>
+        <input id="s-delay" class="form-control" type="number" min="0" max="60000" step="100">
+      </label>
+      <label class="field">
+        <span>SMS credits reported</span>
+        <input id="s-sms-balance" class="form-control" type="number" min="0" step="1">
+      </label>
+    </div>
+
+    <label class="field">
+      <span>Main balance reported</span>
+      <input id="s-main-balance" class="form-control">
+    </label>
+
+    <footer class="sheet-foot">
+      <span class="hint">Stored in memory only</span>
+      <div>
+        <button type="button" class="btn btn-light" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </footer>
+  </form>
+</dialog>
+
+<dialog id="confirm" class="sheet sheet-narrow">
+  <form method="dialog">
+    <header class="sheet-head"><h2>Clear inbox?</h2></header>
+    <p class="confirm-copy" id="confirm-copy">Every captured message will be removed. This cannot be undone.</p>
+    <footer class="sheet-foot">
+      <span></span>
+      <div>
+        <button class="btn btn-light" value="cancel">Keep</button>
+        <button class="btn btn-danger" value="confirm">Clear all</button>
+      </div>
+    </footer>
+  </form>
+</dialog>
+
+<div id="toast" class="app-toast" role="status" aria-live="polite"></div>
+
+<script src="/vendor/base.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
